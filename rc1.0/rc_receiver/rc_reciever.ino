@@ -1,5 +1,5 @@
 /* ***************************************************************************
- * This sketch contains logic of reciever for ignitor                        *
+ * This sketch contains logic of receiver for ignitor                        *
  *                                                                           *
  * Sketch uses Arduino Nano controller, NRF24L01 module, piezo buzzer,       *
  * relay module and 2x18650                                                  *
@@ -10,7 +10,7 @@
  *                                                                           *
  * Logic:                                                                    *
  *    1) Init LED, button and Wi-fi (RF433, LoRA)                            *
- *    2) Wait for button press or recieving magic keyword                    *
+ *    2) Wait for button press or receiving magic keyword                    *
  *    3) If button pressed or magic keyword activated, start 5-sec countdown *
  *    4) Ignite                                                              *
  *                                                                           *

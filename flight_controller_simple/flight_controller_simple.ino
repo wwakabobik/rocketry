@@ -8,14 +8,14 @@
  * Flight controller contains:                                               *
  *    - Arduino Nano v3 (CH340g), piezo buzzer, 9v battery, 2x18650 battery, *
  *      BMP180 barometer/thermometer, KY-017 tilt sensor (or SW-420),        *
- *      two power power relay switches, two LM393 luminocity sensors, LED.   *   
+ *      two power power relay switches, two LM393 luminosity sensors, LED.   *
  *      It's better to use PC jumper to init start, and LM7805 stabilizer.   *
  *                                                                           *
  *      Note: all or only one sensor/timer can be used at same time.         *
  *      Choice is up to you. Best screnario is to trigger ignition at apogee *
  *      Most precise way is to use altimeter with minimum altitude trigger   *
  *      difference. Most robustness way - is to use tilt sensor in pair with *
- *      timer.                                       *
+ *      timer.                                                               *
  *                                                                           *
  * Third-party libraries:                                                    *
  *    - https://github.com/adafruit/Adafruit-BMP085-Library                  *
@@ -47,7 +47,7 @@ const int luminosityBottomPin = 8;
 // Delay globals
 const int startDelay = 30000;  // delay until sistem on standby, it's highly recommended to set up at least to 30 secs
 const int deployDelay = 8000;  // delay from jumper out to force eject chute
-const int ignitionDelay = 10000;  // lenght of ignition, for 9v battery it may take up to 5-6 seconds to warm up, for 18650 is about 1-2 secs  
+const int ignitionDelay = 10000;  // length of ignition, for 9v battery it may take up to 5-6 seconds to warm up, for 18650 is about 1-2 secs
 const int toneDelay = 500;  //  delay between rescue beeps / beeps length 
 
 // Buzzer globals

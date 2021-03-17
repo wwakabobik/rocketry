@@ -1,5 +1,5 @@
 /* ***************************************************************************
- * This sketch contains logic of tranciever for ignitor                      *
+ * This sketch contains logic of tranceiver for ignitor                      *
  *                                                                           *
  * Sketch uses Arduino Nano controller, NRF24L01 module.                     *
  * As alternative, I added LoRA module option and RF433 support              *
@@ -11,7 +11,7 @@
  * Logic:                                                                    *
  *    1) Init LED, button and Wi-fi (RF433, LoRA)                            *
  *    2) Wait for button press                                               *
- *    3) If button is pressed, send maic keyword three times                 *
+ *    3) If button is pressed, send magic keyword three times                *
  *    4) Delay while ignition initiated                                      *
  *                                                                           *
  * Sketch written by Iliya Vereshchagin 2018. Upated 2020                    *

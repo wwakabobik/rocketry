@@ -22,7 +22,7 @@
  *       GPS data (datetime, position), gyro data to SD card;                *
  *    4) Stop loop, save file;                                               *
  *    5) Init GSM and send SMS with GPS position three times;                *
- *    6) Beep continously until vessel will be recovered, send GPS data      *              
+ *    6) Beep continuously until vessel will be recovered, send GPS data     *
  *       via LoRa                                                            *
  *                                                                           *
  * Sketch written by Iliya Vereshchagin 2018.                                *

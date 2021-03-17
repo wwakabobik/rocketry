@@ -10,7 +10,7 @@
  *                                                                           *
  * Logic:                                                                    *
  *    1) Init all modules (HX711, RTC, SD card)                              *
- *    2) Log meaurement data to SD card every tick (approx exery 0,1 sec)    *
+ *    2) Log measurement data to SD card every tick (approx every 0,1 sec)   *
  *    3) Stop measurement                                                    *
  *                                                                           *
  * Sketch written by Iliya Vereshchagin 2019.                                *
