@@ -19,14 +19,16 @@
  * Sketch written by Iliya Vereshchagin 2021.                                *
  *****************************************************************************/
 
-#define DEBUG
-#define PRINT_TELEMETRY
+//#define DEBUG
+//#define OLED_OUT
+//#define PRINT_TELEMETRY
 
-#include <SPI.h>              
+#include <SPI.h>
 #include <LoRa.h>
 #include <Arduino.h>
+#ifdef OLED_OUT
 #include <U8g2lib.h>
-#include <Wire.h>
+#endif
 
 // LED
 const int LED_POWER_PIN = 8;
@@ -41,7 +43,7 @@ const int BUTTON_ENGINE_PIN = 3;
 const int BUTTON_DELAY = 500;
 
 // LoRa
-const int LORA_POWER = 20;                // set TX power to maximum 
+const int LORA_POWER = 20;                // set TX power to maximum
 const int LORA_RETRIES = 12;              // try to init LoRa several times before error
 const int LORA_DELAY = 500;               // delay between retries
 const int LORA_SEND_DELAY = 100;          // delay between send data
@@ -79,15 +81,17 @@ struct LoRa_packet{
 String rocket_gps = "";
 const unsigned long telemetry_actual = 10 * 60 * 1000;  // 10 mins
 
+#ifdef OLED_OUT
 // OLED
-U8G2_SH1106_128X32_VISIONOX_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE); 
+U8G2_SH1106_128X32_VISIONOX_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 const int OLED_FIRST_LINE = 10;
 const int OLED_SECOND_LINE = 25;
 String first_line = "";
 String second_line = "";
+#endif
 
 // Pass through rocket init any ignite
-bool IGNORE_ROCKET = false;  // ignore rocket init for "engine start" check
+bool IGNORE_ROCKET = true;  // ignore rocket init for "engine start" check
 
 
 // Main funtions
@@ -101,9 +105,7 @@ void setup()
     init_buttons();
     init_LoRa();
     turn_on_LED(LED_POWER_PIN);
-    wait_for_ignitor();
-    wait_for_rocket();
-    wait_for_ignite();
+    wait_for_button_pressed();
 }
 
 
@@ -124,10 +126,10 @@ void init_LEDs()
     turn_off_LED(LED_POWER_PIN);
     turn_off_LED(LED_IGNITOR_PIN);
     turn_off_LED(LED_ROCKET_PIN);
-    
+
     #ifdef DEBUG
     Serial.println("Init LED OK");
-    #endif 
+    #endif
 }
 
 
@@ -135,11 +137,11 @@ void init_buttons()
 {
     pinMode(BUTTON_IGNITOR_PIN, INPUT);
     pinMode(BUTTON_ROCKET_PIN, INPUT);
-    pinMode(BUTTON_ENGINE_PIN, INPUT);
-    
+    pinMode(BUTTON_ENGINE_PIN, INPUT_PULLUP);
+
     #ifdef DEBUG
     Serial.println("Init buttons OK");
-    #endif 
+    #endif
 }
 
 
@@ -162,11 +164,11 @@ void init_LoRa()  // try to init LoRA at 433Mhz for several retries
         #endif
         blink_LED(LED_POWER_PIN);
     }
-    
+
     LoRa.setTxPower(LORA_POWER);  // aplify TX power
     #ifdef DEBUG
     Serial.println("LoRa started!");
-    #endif  
+    #endif
 }
 
 
@@ -198,7 +200,7 @@ void blink_LED(int pin)
 
 // LoRa functions
 
-void send_message(String outgoing, byte command, byte destination) 
+void send_message(String outgoing, byte command, byte destination)
 {
     for (int i=0; i < LORA_SEND_RETRIES; i++)
     {
@@ -218,7 +220,7 @@ void send_message(String outgoing, byte command, byte destination)
 }
 
 
-bool onReceive(int packetSize) 
+bool onReceive(int packetSize)
 {
     if (packetSize == 0)
     {
@@ -234,13 +236,13 @@ bool onReceive(int packetSize)
 
     String incoming = "";
 
-    while (LoRa.available()) 
+    while (LoRa.available())
     {
         incoming += (char)LoRa.read();
     }
 
-    if (incomingLength != incoming.length()) 
-    {   
+    if (incomingLength != incoming.length())
+    {
         // check length for error
         #ifdef DEBUG
         Serial.println("error: message length does not match length");
@@ -249,7 +251,7 @@ bool onReceive(int packetSize)
     }
 
     // if the recipient isn't this device or broadcast,
-    if (recipient != LORA_LOCAL_ADDRESS) 
+    if (recipient != LORA_LOCAL_ADDRESS)
     {
         #ifdef DEBUG
         Serial.println("This message is not for me.");
@@ -289,7 +291,7 @@ bool onReceive(int packetSize)
 
 // Control commands
 
-void init_ignitor()
+bool init_ignitor()
 {
     #ifdef DEBUG
     Serial.println("Ignition setup sequence initiated");
@@ -301,7 +303,7 @@ void init_ignitor()
     Serial.println("Ignitor voltage is " + String(lora_packet.command));
     #endif
     if (lora_packet.command > MIN_VOLTAGE)
-    {   
+    {
         #ifdef DEBUG
         Serial.println("Go ignitor to armed state");
         #endif
@@ -310,8 +312,10 @@ void init_ignitor()
     }
     else
     {
+        #ifdef OLED_OUT
         first_line = "Fuse broken, " + String(lora_packet.command) + "V";
         print_OLED();
+        #endif
         blink_LED(LED_IGNITOR_PIN);
     }
     get_data_from_ignitor(LORA_TIMEOUT);
@@ -324,14 +328,18 @@ void init_ignitor()
         Serial.println("Ignitor in armed state");
         #endif
         turn_on_LED(LED_IGNITOR_PIN);
+        return true;
     }
     else
     {
+        #ifdef OLED_OUT
         first_line = "Ignitor broken!";
         print_OLED();
+        #endif
         blink_LED(LED_IGNITOR_PIN);
+        return false;
     }
-    return true;
+
 }
 
 
@@ -341,23 +349,29 @@ bool ignite()
     get_data_from_ignitor(LORA_TIMEOUT);
     if (lora_packet.command != STATE_IGNITION_IGNITION)
     {
+        #ifdef OLED_OUT
         first_line = "Ignitor broken!";
         print_OLED();
+        #endif
         blink_LED(LED_IGNITOR_PIN);
     }
     get_data_from_ignitor(LORA_TIMEOUT + IGNITION_DELAY);
     if (lora_packet.command != STATE_IGNITION_IGNITED)
     {
+        #ifdef OLED_OUT
         first_line = "Ignitor broken!";
         print_OLED();
+        #endif
         blink_LED(LED_IGNITOR_PIN);
     }
     send_message("", STATE_IGNITION_OFF, LORA_IGNITOR);
     get_data_from_ignitor(LORA_TIMEOUT);
     if (lora_packet.command != STATE_IGNITION_OFF)
     {
+        #ifdef OLED_OUT
         first_line = "Ignitor broken!";
         print_OLED();
+        #endif
         blink_LED(LED_IGNITOR_PIN);
     }
     else
@@ -379,14 +393,18 @@ bool init_rocket()
     if (lora_packet.command == STATE_ROCKET_CONTROL)
     {
         rocket_gps = lora_packet.message;
+        #ifdef OLED_OUT
         second_line = rocket_gps;
         print_OLED();
+        #endif
         send_message("", STATE_ROCKET_ARMED, LORA_ROCKET);
     }
     else
     {
+        #ifdef OLED_OUT
         second_line = "Rocket broken!";
         print_OLED();
+        #endif
         blink_LED(LED_ROCKET_PIN);
     }
     get_data_from_rocket();
@@ -396,8 +414,10 @@ bool init_rocket()
     }
     else
     {
+        #ifdef OLED_OUT
         second_line = "Rocket broken!";
         print_OLED();
+        #endif
         blink_LED(LED_ROCKET_PIN);
     }
     return true;
@@ -410,26 +430,26 @@ void wait_for_button_pressed()
     Serial.println("Wait for any button pressed");
     #endif
     bool ignitor_ready = false;
-    bool rocket_ready = false; 
+    bool rocket_ready = false;
     while (true)
     {
-        if ((digitalRead(BUTTON_ROCKET_PIN) == HIGH) && (ignitor_ready == false))
+        if ((digitalRead(BUTTON_ROCKET_PIN) == HIGH) && (rocket_ready == false))
         {
-            ignitor_ready = init_rocket();
+            rocket_ready = init_rocket();
         }
-    
-        if((digitalRead(BUTTON_IGNITOR_PIN) == HIGH) && (rocket_ready == false))
+
+        if((digitalRead(BUTTON_IGNITOR_PIN) == HIGH) && (ignitor_ready == false))
         {
-            rocket_ready = init_ignitor();
+            ignitor_ready = init_ignitor();
         }
-    
-        if((digitalRead(BUTTON_ENGINE_PIN) == HIGH) && (rocket_ready == true) && ((ignitor_reade == true) or (IGNORE_ROCKET == true)))
+
+        if ((digitalRead(BUTTON_ENGINE_PIN) == LOW) && (ignitor_ready == true) && ((rocket_ready == true) or (IGNORE_ROCKET == true)))
         {
             ignite();
             break;
         }
         delay(BUTTON_DELAY);
-    }  
+    }
 }
 
 // Update LoRa data
@@ -447,13 +467,17 @@ void get_data_from_ignitor(int timeout)
             #ifdef DEBUG
             Serial.println("timeout");
             #endif
+            #ifdef OLED_OUT
             first_line = "I: Poor connection!";
             print_OLED();
+            #endif
             blink_LED(LED_IGNITOR_PIN);
         }
     }
+    #ifdef OLED_OUT
     first_line = lora_packet.message;
     print_OLED();
+    #endif
 }
 
 
@@ -471,13 +495,17 @@ void get_data_from_rocket()
             #ifdef DEBUG
             Serial.println("timeout");
             #endif
+            #ifdef OLED_OUT
             second_line = "R: poor connection!";
             print_OLED();
+            #endif
             blink_LED(LED_ROCKET_PIN);
         }
     }
+    #ifdef OLED_OUT
     second_line = lora_packet.message;
     print_OLED();
+    #endif
 }
 
 
@@ -492,14 +520,16 @@ void get_rocket_telemetry()
             #ifdef PRINT_TELEMETRY
             Serial.println(lora_packet.message);
             #endif
+            #ifdef OLED_OUT
             first_line = "Start: " + rocket_gps;
             second_line = lora_packet.message;
             print_OLED();
+            #endif
         }
     }
 }
 
-
+#ifdef OLED_OUT
 void print_OLED()
 {
     char first_l[first_line.length()];
@@ -513,3 +543,5 @@ void print_OLED()
     u8g2.drawStr(0, OLED_SECOND_LINE, second_l); // write something to the internal memory
     u8g2.sendBuffer();                           // transfer internal memory to the display
 }
+#endif
+

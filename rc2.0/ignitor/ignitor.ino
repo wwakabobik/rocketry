@@ -16,9 +16,9 @@
  * Sketch written by Iliya Vereshchagin 2021.                                *
  *****************************************************************************/
 
-#define DEBUG
+//#define DEBUG
 
-#include <SPI.h>              
+#include <SPI.h>
 #include <LoRa.h>
 
 
@@ -33,15 +33,17 @@ const int LED_STATE_ERROR = 5000;
 const int IGNITOR_PIN = 4;
 const int IGNITOR_REFERENCE_PIN = 5;
 const int IGNITOR_CONTROL_PIN = 2;
-const int IGNITOR_THRESHOLD = 150;
+const int IGNITOR_THRESHOLD = 200;  // 204 is 5V
 const int IGNITE_DELAY = 5000;
+const int AVG_MEAS_COUNT = 64; // in case if circuit is broken, average measurement will be less threshold,
+                               // but some of them may be greater, to ensure circuit is broken, measure several times
 
 
 // LoRa
-const int LORA_POWER = 20;                // set TX power to maximum 
+const int LORA_POWER = 20;                // set TX power to maximum
 const int LORA_RETRIES = 12;              // try to init LoRa several times before error
 const int LORA_DELAY = 500;               // delay between retries
-const int LORA_SEND_DELAY = 100;          // delay between send data
+const int LORA_SEND_DELAY = 100;           // delay between send data
 const int LORA_SEND_RETRIES = 5;          // how much packets will be sent
 const byte LORA_LOCAL_ADDRESS = 0xBB;     // address of this device
 const byte LORA_DESTINATION = 0xAA;       // destination to send to
@@ -57,17 +59,15 @@ const int STATE_ARMED = 24;
 const int STATE_IGNITION = 66;
 const int STATE_IGNITED = 100;
 const int STATE_OFF = 120;
-const int STATE_ERROR = 99;
+const int STATE_ERROR = 200;
 
 
 void setup()
 {
-    #ifdef DEBUG
     Serial.begin(9600);
-    #endif DEBUG
     init_LED();
     init_ignitor();
-    init_LoRa();  
+    init_LoRa();
 }
 
 
@@ -76,19 +76,18 @@ void loop()
     onReceive(LoRa.parsePacket());
 }
 
-
 // Init functions
 
 void init_ignitor()
 {
     pinMode(IGNITOR_REFERENCE_PIN, OUTPUT);
     digitalWrite(IGNITOR_REFERENCE_PIN, HIGH);
-    
+
     if (ignitor_consistency() < IGNITOR_THRESHOLD)
     {
         #ifdef DEBUG
         Serial.println("Ignitor init failed!");
-        #endif 
+        #endif
         blink_LED(LED_IGNITOR_ERROR);
     }
     else
@@ -97,8 +96,8 @@ void init_ignitor()
         turn_on_LED();
         #ifdef DEBUG
         Serial.println("Ignitor init OK");
-        #endif 
-    } 
+        #endif
+    }
 }
 
 
@@ -107,7 +106,7 @@ void init_LED()
     pinMode(LED_PIN, OUTPUT);
     #ifdef DEBUG
     Serial.println("Init LED OK");
-    #endif 
+    #endif
 }
 
 
@@ -130,11 +129,11 @@ void init_LoRa()  // try to init LoRA at 433Mhz for several retries
         #endif
         blink_LED(LED_LORA_ERROR);
     }
-    
+
     LoRa.setTxPower(LORA_POWER);  // aplify TX power
     #ifdef DEBUG
     Serial.println("LoRa started!");
-    #endif  
+    #endif
 }
 
 
@@ -144,19 +143,29 @@ void ignite()
 {
     #ifdef DEBUG
     Serial.println("Ignition!");
-    #endif  
+    #endif
     digitalWrite(IGNITOR_PIN, HIGH);
     delay(IGNITE_DELAY);
     digitalWrite(IGNITOR_PIN, LOW);
     #ifdef DEBUG
     Serial.println("Ignited...");
-    #endif  
+    #endif
 }
 
 
 byte ignitor_consistency()
 {
-    return byte(analogRead(IGNITOR_CONTROL_PIN)/5);
+    int average_voltage = 0;
+    for (int i=0; i < AVG_MEAS_COUNT; i++)
+    {
+        average_voltage += byte(analogRead(IGNITOR_CONTROL_PIN)/5);
+    }
+    average_voltage /= AVG_MEAS_COUNT;
+    #ifdef DEBUG
+    Serial.print("Normalized voltage:\t");
+    Serial.println(average_voltage);
+    #endif
+    return (byte)average_voltage;
 }
 
 
@@ -187,7 +196,7 @@ void blink_LED(int timeout)
 
 // LoRa functions
 
-void send_message(String outgoing, byte command) 
+void send_message(String outgoing, byte command)
 {
     for (int i=0; i < LORA_SEND_RETRIES; i++)
     {
@@ -203,10 +212,9 @@ void send_message(String outgoing, byte command)
     }
 }
 
-
-void onReceive(int packetSize) 
+void onReceive(int packetSize)
 {
-    if (packetSize == 0) 
+    if (packetSize == 0)
     {
         return;                           // if there's no packet, return
     }
@@ -220,13 +228,13 @@ void onReceive(int packetSize)
 
     String incoming = "";
 
-    while (LoRa.available()) 
+    while (LoRa.available())
     {
         incoming += (char)LoRa.read();
     }
 
-    if (incomingLength != incoming.length()) 
-    {   
+    if (incomingLength != incoming.length())
+    {
         // check length for error
         #ifdef DEBUG
         Serial.println("error: message length does not match length");
@@ -235,7 +243,7 @@ void onReceive(int packetSize)
     }
 
     // if the recipient isn't this device or broadcast,
-    if (recipient != LORA_LOCAL_ADDRESS) 
+    if (recipient != LORA_LOCAL_ADDRESS)
     {
         #ifdef DEBUG
         Serial.println("This message is not for me.");
@@ -287,7 +295,6 @@ void onReceive(int packetSize)
     #endif
 }
 
-
 // Control commands
 
 void set_error(byte state)
@@ -296,7 +303,6 @@ void set_error(byte state)
     send_message(message, state);
     blink_LED(LED_STATE_ERROR);
 }
-
 
 void set_control()
 {
@@ -315,7 +321,6 @@ void set_control()
         set_error(state);
     }
 }
-
 
 void set_armed()
 {
