@@ -48,6 +48,8 @@ const long landing_delay = flight_delay * 12;
 // Gyro globals
 const int MPU_addr=0x68;  // I2C address of the MPU-6050
 int16_t AcX,AcY,AcZ,Tmp,GyX,GyY,GyZ;
+
+
 // Barometer globals
 SFE_BMP180 barometer_data;
 double normal_pressure = 0;
@@ -162,6 +164,12 @@ void initGyro()
     Wire.beginTransmission(MPU_addr);
     Wire.write(0x6B);  // PWR_MGMT_1 register
     Wire.write(0);     // set to zero (wakes up the MPU-6050)
+    Wire.endTransmission(true);
+    // Configure Accelerometer Sensitivity - Full Scale Range (default +/- 2g)
+    // 2g --> 0x00, 4g --> 0x08, 8g --> 0x10, 16g --> 0x18
+    Wire.beginTransmission(MPU);
+    Wire.write(0x1C);                  //Talk to the ACCEL_CONFIG register (1C hex)
+    Wire.write(0x18);                  //Set the register bits as 00011000 (+/- 16g full scale range)
     Wire.endTransmission(true);
     #ifdef DEBUG
     Serial.println("Gyro start");
