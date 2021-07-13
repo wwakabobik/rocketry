@@ -25,19 +25,15 @@
 
 #include <SPI.h>              
 #include <LoRa.h>
+#include <WiFi.h>
+#include "FS.h"
+#include "SPIFFS.h"
 
-
-// LoRa
-const int LORA_POWER = 20;                // set TX power to maximum
-const int LORA_RETRIES = 12;              // try to init LoRa several times before error
-const int LORA_DELAY = 500;               // delay between retries
-const int LORA_SEND_DELAY = 100;          // delay between send data
-const int LORA_SEND_RETRIES = 5;          // how much packets will be sent
-const byte LORA_LOCAL_ADDRESS = 0xCC;     // address of this device
-const byte LORA_RECEIVER = 0xAA;          // destination to send to
-const byte LORA_KEYWORD = 0x42;           // verification keyword
-const int LORA_RECEIVE_DELAY = 500;       // stop activity if correct packet received
-const unsigned long LORA_TIMEOUT = (LORA_RECEIVE_DELAY + (LORA_SEND_DELAY * LORA_SEND_RETRIES * 10));
+#include "gps.h"
+#include "beeper.h"
+#include "lora_module.h"
+#include "gyro.h"
+#include "altimeter.h"
 
 
 // State
@@ -50,13 +46,12 @@ const int STATE_ROCKET_LANDED = 220;
 const int STATE_ROCKET_ERROR = 240;
 
 
-// Beeper consts
-const int BEEP_FREQUENCY = 500;
-const int BEEP_LONG = 500;
-const int BEEP_DELAY = 200;
-const int BEEP_CONT_DELAY = 5000;
-const int BEEP_RESCUE_LONG = 1000;
-const int BEEPER_PIN = ???;
+// Ignitor const
+const int IGNITOR_PIN = 14;
+const int IGNITOR_CONTROL_PIN = 33;
+
+
+// SPIFFS globals
 
 
 
@@ -69,7 +64,7 @@ void setup()
     init_ignitor();
     init_LoRa();
     init_barometer();
-    init_accelerometr();
+    init_gyro();
     init_SPIFFS();
     init_GPS();
     wait_for_LoRa_command();
@@ -89,67 +84,53 @@ void loop()
 
 // Init functions
 
+
+void init_communication()
+{
+    //Turn off WiFi and Bluetooth
+    WiFi.mode(WIFI_OFF);
+    btStop();
+}
+
 void init_ignitor()
 {
-    // should I add consistency check here? Need to try...
-}
+    pinMode(IGNITOR_REFERENCE_PIN, OUTPUT);
+    digitalWrite(IGNITOR_REFERENCE_PIN, HIGH);
 
-
-void init_beeper()
-{
-
-}
-
-
-void init_barometer()
-{
-
-}
-
-
-void init_accelerometr()
-{
-
+    if (ignitor_consistency() < IGNITOR_THRESHOLD)
+    {
+        #ifdef DEBUG
+        Serial.println("Ignitor init failed!");
+        #endif
+        blink_LED(LED_IGNITOR_ERROR);
+    }
+    else
+    {
+        pinMode(IGNITOR_PIN, OUTPUT);
+        turn_on_LED();
+        #ifdef DEBUG
+        Serial.println("Ignitor init OK");
+        #endif
+    }
 }
 
 
 void init_SPIFFS()
 {
-
-}
-
-
-void init_GPS()
-{
-
-}
-
-
-void init_LoRa()  // try to init LoRA at 433Mhz for several retries
-{
-    bool success = false;
-    for (int i=0; i < LORA_RETRIES; i++)
-    {
-        if (LoRa.begin(433E6))
-        {
-            success = true;
-            break;
-        }
-        delay(LORA_DELAY);
-    }
-    if (!success)
+    if(!SPIFFS.begin(true))
     {
         #ifdef DEBUG
-        Serial.println("LoRa init failed.");
+        Serial.println("SPIFFS init failed");
         #endif
-        blink_LED(LED_LORA_ERROR);
     }
-    
-    LoRa.setTxPower(LORA_POWER);  // aplify TX power
-    #ifdef DEBUG
-    Serial.println("LoRa started!");
-    #endif  
+    else
+    {
+        #ifdef DEBUG
+        Serial.println("SPIFFS init OK");
+        #endif
+    }
 }
+
 
 
 // Ignitor functions
@@ -170,100 +151,25 @@ void ignite()
 
 byte ignitor_consistency()
 {
-    return byte(analogRead(IGNITOR_CONTROL_PIN)/5);
-}
-
-
-// LoRa functions
-
-void wait_for_LoRa_command()
-{
-    while(true)
+    int average_voltage = 0;
+    for (int i=0; i < AVG_MEAS_COUNT; i++)
     {
-        if (onReceive(LoRa.parsePacket()) == STATE_ARMED)
-        {
-            break
-        }
+        average_voltage += byte(analogRead(IGNITOR_CONTROL_PIN)/5);
     }
-}
-
-void send_message(String outgoing, byte command) 
-{
-    for (int i=0; i < LORA_SEND_RETRIES; i++)
-    {
-        LoRa.beginPacket();                   // start packet
-        LoRa.write(LORA_DESTINATION);         // add destination address
-        LoRa.write(LORA_LOCAL_ADDRESS);       // add sender address
-        LoRa.write(LORA_KEYWORD);             // add message ID
-        LoRa.write(command);                  // use command placeholder for telemetry
-        LoRa.write(outgoing.length());        // add payload length
-        LoRa.print(outgoing);                 // add payload
-        LoRa.endPacket();                     // finish packet and send it
-        delay(LORA_SEND_DELAY);
-    }
-}
-
-
-int onReceive(int packetSize)
-{
-    if (packetSize == 0) 
-    {
-        return;                           // if there's no packet, return
-    }
-
-    // read packet header bytes:
-    byte recipient = LoRa.read();         // recipient address
-    byte sender = LoRa.read();            // sender address
-    byte magic_word = LoRa.read();        // incoming msg ID
-    byte command = LoRa.read();           // command
-    byte incomingLength = LoRa.read();    // incoming msg length
-
-    String incoming = "";
-
-    while (LoRa.available()) 
-    {
-        incoming += (char)LoRa.read();
-    }
-
-    if (incomingLength != incoming.length()) 
-    {   
-        // check length for error
-        #ifdef DEBUG
-        Serial.println("error: message length does not match length");
-        #endif
-        return -1;
-    }
-
-    // if the recipient isn't this device or broadcast,
-    if (recipient != LORA_LOCAL_ADDRESS) 
-    {
-        #ifdef DEBUG
-        Serial.println("This message is not for me.");
-        #endif
-        return -1;
-    }
-
-    if (magic_word != LORA_KEYWORD)
-    {
-        #ifdef DEBUG
-        Serial.println("Wrong magic word, aborted");
-        #endif
-        return -1;
-    }
-
+    average_voltage /= AVG_MEAS_COUNT;
     #ifdef DEBUG
-    // if message is for this device, or broadcast, print details:
-    Serial.println("Received from: 0x" + String(sender, HEX));
-    Serial.println("Sent to: 0x" + String(recipient, HEX));
-    Serial.println("Message ID: " + String(command));
-    Serial.println("Message length: " + String(incomingLength));
-    Serial.println("Message: " + incoming);
-    Serial.println("RSSI: " + String(LoRa.packetRssi()));
-    Serial.println("Snr: " + String(LoRa.packetSnr()));
-    Serial.println();
+    Serial.print("Normalized voltage:\t");
+    Serial.println(average_voltage);
     #endif
+    return (byte)average_voltage;
+}
 
-    delay(LORA_RECEIVE_DELAY);  // force delay before act
+
+// Control commands
+
+
+void set_command(int command):
+{
     switch(command)
     {
         case STATE_CONTROL:
@@ -276,20 +182,13 @@ int onReceive(int packetSize)
         set_error(STATE_ERROR);
         break;
     };
-    #ifdef DEBUG
-    Serial.println("State " + String(command) + " set, return to listening");
-    #endif
-    return command;
 }
 
-
-// Control commands
 
 void set_error(byte state)
 {
     String message = "Error on state " + String(state);
     send_message(message, state);
-    blink_LED(LED_STATE_ERROR);
 }
 
 
@@ -328,37 +227,6 @@ void set_armed()
     }
 }
 
-
-// Beeper logic
-
-void beep(int ghz, int time)
-{
-
-}
-
-
-void beep_state(int times):
-{
-    for(int i = 0; i < times; i++)
-    {
-        beep(BEEP_FREQUENCY, BEEP_LONG);
-        delay(BEEP_DELAY);
-    }
-}
-
-void beep_continuously(int state):
-{
-    while(true):
-    {
-        beep_state(state);
-    }
-}
-
-void beep_rescue()
-{
-    beep(BEEP_FREQUENCY, BEEP_RESCUE_LONG));
-    delay(BEEP_DELAY);
-}
 
 
 // Flight sequence logic
