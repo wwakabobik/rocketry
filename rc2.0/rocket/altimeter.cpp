@@ -16,6 +16,8 @@ void init_barometer()
     bme_pressure->getEvent(&pressure_event);
     normal_pressure = pressure_event.pressure;
 
+    land_altitude = get_altitude();
+
     #ifdef DEBUG
     Serial.println("Init BME280 OK");
     bme_temp->printSensorDetails();

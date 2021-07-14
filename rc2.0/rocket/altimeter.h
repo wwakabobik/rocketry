@@ -4,6 +4,7 @@
 
 // Sensor globals
 float normal_pressure = 0;
+float land_altitude = 0;
 Adafruit_BME280 bme; // use I2C interface
 Adafruit_Sensor *bme_temp = bme.getTemperatureSensor();
 Adafruit_Sensor *bme_pressure = bme.getPressureSensor();

@@ -36,7 +36,7 @@ void wait_for_LoRa_command()
     {
         if (onReceive(LoRa.parsePacket()) == STATE_ARMED)
         {
-            break
+            break;
         }
     }
 }

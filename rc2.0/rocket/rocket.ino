@@ -34,6 +34,7 @@
 #include "lora_module.h"
 #include "gyro.h"
 #include "altimeter.h"
+#include "config.h"
 
 
 // State
@@ -228,6 +229,16 @@ void set_armed()
 }
 
 
+String get_sensors_data()
+{
+    String ret_str = "";
+    ret_str = String(millis()) + ",";
+    ret_str = get_gyro_data() + ",";
+    ret_str = get_gps_data() + ",";
+    ret_str = get_altimeter_data();
+    return ret_str;
+}
+
 
 // Flight sequence logic
 
@@ -235,13 +246,16 @@ void wait_for_start()
 {
     while(true)
     {
-        if (((BMP180.altitude - land_altitude) > 10) or (digitalRead(JUMPER_PIN) != HIGH))
+        if ((get_altitude() - land_altitude) > altitude_threshold)
         {
             break;
         }
         else
         {
             sensor_data = get_sensors_data();
+            #ifdef DEBUG
+            Serial.println(sensor_data);
+            #endif
             store_spiffs_data(sensor_data);
         }
     }

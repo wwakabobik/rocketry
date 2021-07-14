@@ -1,0 +1,1 @@
+const float altitude_threshold = 10.0;
