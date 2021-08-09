@@ -41,7 +41,7 @@ const int BaudRate = 9600;
 // delay globals
 const int standard_delay = 500;
 const int error_delay = 100;
-const long flight_delay = 10000;
+const long flight_delay = 12000;
 const long apogee_delay = flight_delay / 2;
 const long landing_delay = flight_delay * 12;
 
@@ -82,27 +82,28 @@ void setup()
     #ifdef DEBUG
     Serial.begin(BaudRate);
     #endif
-    initBuzzer();
-    initBarometer();
-    initGyro();
-    initIgnitor();
-    initSDCard();
-    altitude = getRawBarometerData(2);
+    init_buzzer();
+    init_barometer();
+    init_gyro();
+    init_ignitor();
+    init_SD_card();
+    altitude = get_raw_barometer_data(2);
     beep(frequency, standard_delay); // make beep, mark init completed
     #ifdef DEBUG
     Serial.println("Init completed, waiting for rocket start");
     #endif
-    wait_for_jumper();
+    wait_for_start();
 }
 
 
-void wait_for_jumper()
+void wait_for_start()
 {
     double delta_altitude;
     while(1)
     {
         #ifdef ALTITUDE_START
-        delta_altitude = getRawBarometerData(2) - altitude;
+        delta_altitude = get_raw_barometer_data(2) - altitude;
+        // Regular start
         if (delta_altitude > max_delta)
         {
             #ifdef DEBUG
@@ -110,17 +111,18 @@ void wait_for_jumper()
             #endif
             break;
         }
-        // failsafe: are we rebooting in flight? If yes, ignite immidiately
+        // Failsafe: are we rebooting in flight? If yes, ignite immediately
         if ((-delta_altitude) > (max_delta * 2))
         {
             #ifdef DEBUG
             Serial.println("Rocket falling! Urgent ignition!");
             #endif
             ignite();  // try to eject chute
-            stopFlight(); // close file anyway
-            rescueBeep(standard_delay); // start beeping
+            stop_flight(); // close file anyway
+            rescue_beep(standard_delay); // start beeping
         }
         #endif
+        
         #ifdef JUMPER_START
         if (digitalRead(PIN_JUMPER) == LOW)
         {
@@ -131,6 +133,8 @@ void wait_for_jumper()
         }
         break;
         #endif
+        
+        // Do not use FAKE_RUN logic for real flight!
         #ifdef FAKE_RUN
         fake_ignition();
         break;
@@ -141,7 +145,7 @@ void wait_for_jumper()
 
 /* Init functions */
 
-void initIgnitor()
+void init_ignitor()
 {
     #ifdef DEBUG
     Serial.println("Initializing ignitor pin...");
@@ -150,7 +154,7 @@ void initIgnitor()
     digitalWrite(PIN_IGNITOR, HIGH);
 }
 
-void initJumper()
+void init_jumper()
 {
     #ifdef DEBUG
     Serial.println("Initializing jumper pin...");
@@ -159,7 +163,7 @@ void initJumper()
 }
 
 
-void initGyro()
+void init_gyro()
 {
     Wire.beginTransmission(MPU_addr);
     Wire.write(0x6B);  // PWR_MGMT_1 register
@@ -177,7 +181,7 @@ void initGyro()
 }
 
 
-bool initSDCard()
+bool init_SD_card()
 {
     #ifdef DEBUG
     Serial.println("Initializing SD card...");
@@ -213,17 +217,17 @@ bool initSDCard()
 }
 
 
-void initBarometer()
+void init_barometer()
 {
     barometer_data.begin();
-    normal_pressure = getRawBarometerData(0);
+    normal_pressure = get_raw_barometer_data(0);
     #ifdef DEBUG
     Serial.println("Barometer set");
     #endif
 }
 
 
-void initBuzzer()
+void init_buzzer()
 {
     pinMode(PIN_BUZZER, INPUT);
     #ifdef DEBUG
@@ -235,7 +239,7 @@ void initBuzzer()
 /* Execution functions */
 
 
-void writeFlightData()
+void write_flight_data()
 {
     myFile.print(millis());
     #ifdef DEBUG
@@ -245,17 +249,17 @@ void writeFlightData()
     #ifdef DEBUG
     Serial.print(",");
     #endif
-    myFile.print(getGyroData());
+    myFile.print(get_gyro_data());
     #ifdef DEBUG
-    Serial.print(getGyroData());
+    Serial.print(get_gyro_data());
     #endif
     myFile.print(",");
     #ifdef DEBUG
     Serial.print(",");
     #endif
-    myFile.print(getBarometerData());
+    myFile.print(get_barometer_data());
     #ifdef DEBUG
-    Serial.print(getBarometerData());
+    Serial.print(get_barometer_data());
     #endif
     myFile.print("\n");
     #ifdef DEBUG
@@ -264,7 +268,7 @@ void writeFlightData()
 }
 
 
-String getGyroData()
+String get_gyro_data()
 {
     Wire.beginTransmission(MPU_addr);
     Wire.write(0x3B);  // starting with register 0x3B (ACCEL_XOUT_H)
@@ -282,15 +286,15 @@ String getGyroData()
 }
 
 
-String getBarometerData()
+String get_barometer_data()
 {   
-    altitude = getRawBarometerData(2);
-    String retVal = String(getRawBarometerData(0)) + "," + String(getRawBarometerData(1)) + "," + String(altitude);
+    altitude = get_raw_barometer_data(2);
+    String retVal = String(get_raw_barometer_data(0)) + "," + String(get_raw_barometer_data(1)) + "," + String(altitude);
     return retVal;
 }
 
 
-double getRawBarometerData(int type)
+double get_raw_barometer_data(int type)
 {
     char status;
     double T, P;
@@ -330,16 +334,16 @@ double getRawBarometerData(int type)
 
 void loop()
 {
-    // write flight data every tick  
-    writeFlightData();
+    // Write flight data every tick  
+    write_flight_data();
 
-    // write new apogee
+    // Store new apogee
     if (altitude > max_altitude)
     {
         max_altitude = altitude;
     }
 
-    // check for apogee
+    // Check for apogee, do not allow to release chute while too close to ground or while engine still working
     if ((max_altitude - altitude) > max_delta and ignited == false and ((millis() - start_time) > apogee_delay))
     {
         #ifdef DEBUG
@@ -348,7 +352,7 @@ void loop()
         ignite();
     }
 
-    // check that time limit is reached
+    // If barometer stuck or something nasty happened: check that time limit is reached, open chute anyway
     if (((millis() - start_time) > flight_delay) and ignited == false)
     {
         #ifdef DEBUG
@@ -357,20 +361,20 @@ void loop()
         ignite();
     }
 
-    // check for flight end
+    // Check for flight end after time limit (rocket should be landed already)
     if ((millis() - start_time) > landing_delay)
     {
         // close file if it's opened
         if (myFile)
         {
-            stopFlight();
+            stop_flight();
         }
-        rescueBeep(standard_delay);
+        rescue_beep(standard_delay);
     }
 }
 
 
-void stopFlight()
+void stop_flight()
 {
     #ifdef DEBUG
     Serial.println("Landed, saving data and call for recovery");
@@ -396,12 +400,15 @@ void ignite()
     Serial.println("Deploying chute, ignition!");
     #endif
     digitalWrite(PIN_IGNITOR, LOW);
+    // Attention! After ignition there is still voltage on pins, 
+    // do not touch electronics before switch-off flight computer!
+    // Ignitor is not switched off because we have no time to wait in flight and to do it.
     ignited = true;
 }
 
 
 /* buzzer functions */
-void rescueBeep(int demanded_delay)
+void rescue_beep(int demanded_delay)
 {
     beep(frequency, demanded_delay);
     delay(demanded_delay);

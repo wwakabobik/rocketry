@@ -45,7 +45,7 @@ const int luminosityUpperPin = 7;
 const int luminosityBottomPin = 8;
 
 // Delay globals
-const int startDelay = 30000;  // delay until sistem on standby, it's highly recommended to set up at least to 30 secs
+const int startDelay = 30000;  // delay until system on standby, it's highly recommended to set up at least to 30 secs
 const int deployDelay = 8000;  // delay from jumper out to force eject chute
 const int ignitionDelay = 10000;  // length of ignition, for 9v battery it may take up to 5-6 seconds to warm up, for 18650 is about 1-2 secs
 const int toneDelay = 500;  //  delay between rescue beeps / beeps length 
