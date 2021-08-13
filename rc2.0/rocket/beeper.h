@@ -1,6 +1,8 @@
 #ifndef __BEEPER_H__
 #define __BEEPER_H__
 
+#include <Arduino.h>
+
 // Beeper consts
 const int BEEP_FREQUENCY = 500;
 const int BEEP_LONG = 500;

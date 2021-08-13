@@ -1,7 +1,13 @@
 #include "altimeter.h"
 
 
-#include <Adafruit_BME280.h>
+// Sensor globals
+float normal_pressure = 0;
+float land_altitude = 0;
+Adafruit_BME280 bme; // use I2C interface
+Adafruit_Sensor *bme_temp = bme.getTemperatureSensor();
+Adafruit_Sensor *bme_pressure = bme.getPressureSensor();
+Adafruit_Sensor *bme_humidity = bme.getHumiditySensor();
 
 
 void init_barometer()
@@ -58,8 +64,7 @@ float get_altitude()
 {
     float altitude;
     sensors_event_t altitude_event;
-    bme_altitude->getEvent(&altitude_event);
-    altitude = altitude_event.value;
+    altitude = bme.readAltitude(normal_pressure);;
 }
 
 
@@ -67,6 +72,11 @@ String get_altimeter_data()
 {
     String ret_str = "";
     ret_str = String(get_temperature()) + "," + String(get_humidity());
-    ret_str += "," +get_pressure() + "," + String(get_altitude());
+    ret_str += "," + String(get_pressure()) + "," + String(get_altitude());
     return ret_str;
+}
+
+float get_land_altitude()
+{
+    return land_altitude;
 }

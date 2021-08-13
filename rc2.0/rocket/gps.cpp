@@ -1,6 +1,13 @@
 #include "gps.h"
 
+// GPS globals
+double lat, lon, alt, kmph;  // GPS data are saved here: Latitude, Longitude, Altitude, Speed in km/h
+int sats;  // GPS satellite count
+char s[32];  // used to sprintf for Serial output
+const long GPS_DELAY = 120000;
 HardwareSerial GPSSerial(1);
+gps gps_wrapper;
+
 
 void gps::init()
 {
@@ -25,7 +32,7 @@ void gps::encode()
 
 void gps::getLatLon(double* lat, double* lon, double *alt, double *kmph, int *sats)
 {
-    #ifdef DEBUG
+    #ifdef ROCKET_DEBUG
     sprintf(t, "Lat: %f", tGps.location.lat());
     Serial.println(t);
 
@@ -60,14 +67,14 @@ bool gps::checkGpsFix()
       tGps.altitude.isValid() &&
       tGps.altitude.age() < 2000 )
     {
-        #ifdef DEBUG
+        #ifdef ROCKET_DEBUG
         Serial.println("Valid gps Fix.");
         #endif
         return true;
     }
     else
     {
-        #ifdef DEBUG
+        #ifdef ROCKET_DEBUG
         Serial.println("No gps Fix.");
         #endif
         return false;
@@ -77,9 +84,9 @@ bool gps::checkGpsFix()
 
 void init_GPS()
 {
-    gps.init();
+    gps_wrapper.init();
     delay(GPS_DELAY);
-    #ifdef DEBUG
+    #ifdef ROCKET_DEBUG
     Serial.println(print_GPS_data(True));
     Serial.println("GPS started");
     #endif
@@ -87,16 +94,16 @@ void init_GPS()
 
 
 // GPS functions
-void get_GPS_data()
+String get_GPS_data()
 {
-    if (gps.checkGpsFix())
+    if (gps_wrapper.checkGpsFix())
     {
         // Prepare upstream data transmission at the next possible time.
-        gps.getLatLon(&lat, &lon, &alt, &kmph, &sats);
+        gps_wrapper.getLatLon(&lat, &lon, &alt, &kmph, &sats);
     }
     else
     {
-        #ifdef DEBUG
+        #ifdef ROCKET_DEBUG
         Serial.println("GPS is not ready");
         #endif
     }
@@ -112,22 +119,22 @@ String print_GPS_data(bool verbose)
     return_string += String(lat);
     if (verbose)
     {
-        return_string += "\tLon: "
+        return_string += "\tLon: ";
     }
     return_string += String(lon);
     if (verbose)
     {
-        return_string += "\tAlt: "
+        return_string += "\tAlt: ";
     }
     return_string += String(alt);
     if (verbose)
     {
-        return_string += " m\tSpeed: "
+        return_string += " m\tSpeed: ";
     }
     return_string += String(kmph);
     if (verbose)
     {
-        return_string += " km/h\tSatellites: "
+        return_string += " km/h\tSatellites: ";
     }
     return_string += String(sats);
     return return_string;

@@ -1,6 +1,10 @@
 #ifndef __LORA_MODULE_H__
 #define __LORA_MODULE_H__
 
+#include <Arduino.h>
+#include <LoRa.h>
+
+
 // LoRa
 const int LORA_POWER = 20;                // set TX power to maximum
 const int LORA_RETRIES = 12;              // try to init LoRa several times before error
