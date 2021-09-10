@@ -2,8 +2,8 @@
 
 // GPS globals
 double lat, lon, alt, kmph;  // GPS data are saved here: Latitude, Longitude, Altitude, Speed in km/h
-int sats;  // GPS satellite count
-char s[32];  // used to sprintf for Serial output
+int sats;                    // GPS satellite count
+char s[32];                  // used to sprintf for Serial output
 const long GPS_DELAY = 120000;
 HardwareSerial GPSSerial(1);
 gps gps_wrapper;
@@ -94,7 +94,7 @@ void init_GPS()
 
 
 // GPS functions
-String get_GPS_data()
+void get_GPS_data()
 {
     if (gps_wrapper.checkGpsFix())
     {
@@ -107,6 +107,7 @@ String get_GPS_data()
         Serial.println("GPS is not ready");
         #endif
     }
+    return return_string;
 }
 
 String print_GPS_data(bool verbose)

@@ -165,7 +165,7 @@ void init_LoRa()  // try to init LoRA at 433Mhz for several retries
         blink_LED(LED_POWER_PIN);
     }
 
-    LoRa.setTxPower(LORA_POWER);  // aplify TX power
+    LoRa.setTxPower(LORA_POWER);  // amplify TX power
     #ifdef DEBUG
     Serial.println("LoRa started!");
     #endif

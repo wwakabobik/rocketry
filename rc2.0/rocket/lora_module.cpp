@@ -45,7 +45,7 @@ void send_message(String outgoing, byte command)
     for (int i=0; i < LORA_SEND_RETRIES; i++)
     {
         LoRa.beginPacket();                   // start packet
-        LoRa.write(LORA_RECEIVER);         // add destination address
+        LoRa.write(LORA_RECEIVER);            // add destination address
         LoRa.write(LORA_LOCAL_ADDRESS);       // add sender address
         LoRa.write(LORA_KEYWORD);             // add message ID
         LoRa.write(command);                  // use command placeholder for telemetry

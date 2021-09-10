@@ -156,11 +156,12 @@ void set_control()
 {
     if (state == STATE_DEFAULT)
     {
-        message = get_GPS_data();
+        get_GPS_data();
+        message = print_GPS_data();
         send_message(message, 0x88);
         state = STATE_ROCKET_CONTROL;
         #ifdef ROCKET_DEBUG
-        Serial.println("Sending message: " + message + " | " + gps_data);
+        Serial.println("Sending message: " + message + " | 0x88");
         #endif
     }
     else
@@ -193,7 +194,8 @@ String get_sensors_data()
     String ret_str = "";
     ret_str = String(millis()) + ",";
     ret_str = get_gyro_data() + ",";
-    ret_str = get_GPS_data() + ",";
+    get_GPS_data(); // update GPS data
+    ret_str = print_GPS_data() + ",";
     ret_str = get_altimeter_data();
     return ret_str;
 }
