@@ -9,9 +9,12 @@
  *    - https://github.com/adafruit/RTClib.git                               *
  *                                                                           *
  * Logic:                                                                    *
- *    1) Init all modules (HX711, RTC, SD card)                              *
- *    2) Log measurement data to SD card every tick (approx every 0,1 sec)   *
- *    3) Stop measurement                                                    *
+ *    1) Init all modules (HX711, RTC, SD card,ignitor PIN)                  *
+ *    2) Countdown (by default - 120 sec)                                    *
+ *    3) Activate relay, fire ignitor                                        *
+ *    4) Log measurement data to SD card every tick (approx every 0,1 sec)   *
+ *    5) Stop measurement                                                    *
+ *    6) Turn off relay                                                      *
  *                                                                           *
  * Sketch written by Iliya Vereshchagin 2021.                                *
  *****************************************************************************/
@@ -25,7 +28,7 @@
 // Delay globals
 const int standard_delay = 1000;
 const int short_delay = 100;
-const int counter_seconds = 60;
+const int counter_seconds = 120;
 const int measurement_time = 30;
 
 // LED globals
@@ -37,7 +40,7 @@ const int ignitor_PIN = 9;
 
 // HX711 globals
 HX711 scale;
-const float calibration_factor = 126.53; // obtained by scale_calibration
+const float calibration_factor = -43.02; // obtained by scale_calibration
 float scale_result;
  
 // SD CARD globals
@@ -60,7 +63,7 @@ void setup()
     init_LED();
     init_RTC();
     init_scale();
-    init_relay()
+    init_ignitor();
 
     
     if (init_SD_card())
@@ -90,7 +93,7 @@ void loop()
         myFile.close();
         #ifdef DEBUG
         Serial.println("Measurement stop!");
-        #ifdef endif
+        #endif
         delay(standard_delay);
         stop_measure();
     }
@@ -134,7 +137,7 @@ void sd_error()
 void stop_measure()
 {
     digitalWrite(LED_green, LOW);
-    digitalWrite(ignitor_PIN, LOW);
+    digitalWrite(ignitor_PIN, HIGH);
     while(1);
 }
 
@@ -150,7 +153,7 @@ void start_loop()
         #endif
         myFile.println();
         myFile.println(get_time_stamp());
-        digitalWrite(ignitor_PIN, HIGH);
+        digitalWrite(ignitor_PIN, LOW);
     }
     else
     {
@@ -166,7 +169,7 @@ String get_time_stamp()
 {
     now = RTC.now();
     String ret_string = String(now.year(), DEC) + "/" + String(now.month(), DEC) + "/" + String(now.day(), DEC);
-    ret_string += " " + String(now.hour(), DEC) + ":" + String(now.minute(), DEC)
+    ret_string += " " + String(now.hour(), DEC) + ":" + String(now.minute(), DEC);
     return ret_string;
 }
 
@@ -212,7 +215,7 @@ bool init_SD_card()
     }
     #ifdef DEBUG
     Serial.println("Opening IO file...");
-    #ifdef endif
+    #endif
     myFile = SD.open("scale.txt", FILE_WRITE);
     delay(standard_delay);
     if (myFile)
@@ -228,7 +231,7 @@ bool init_SD_card()
     {
         #ifdef DEBUG
         Serial.println("Can't open file!");
-        #ifdef endif
+        #endif
         delay(standard_delay);
         return true;
     }
@@ -244,5 +247,5 @@ void init_LED()
 void init_ignitor()
 {
     pinMode(ignitor_PIN, OUTPUT);
-    digitalWrite(ignitor_PIN, LOW);
+    digitalWrite(ignitor_PIN, HIGH);
 }
