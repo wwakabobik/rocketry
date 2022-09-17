@@ -1,7 +1,7 @@
 # Rocketry
 
 I like rockets! And you?
-If yes, I glad to share my projects with you. If you still not interested, you have to watch my video:
+If yes, I glad to share my projects with you. If you still not interested, you have to watch my video (russian and english subs):
 
 [![Drake 5M rocket](https://img.youtube.com/vi/orwE_tsarW4/0.jpg)](https://www.youtube.com/watch?v=orwE_tsarW4)
 
